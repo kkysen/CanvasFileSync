@@ -1,7 +1,7 @@
 use crate::api::core::Id;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub(super) struct MaybeCourse {
     id: Id,
     name: Option<String>,
@@ -25,5 +25,11 @@ impl From<MaybeCourse> for Option<Course> {
             id,
             name,
         })
+    }
+}
+
+impl Course {
+    pub fn modules_endpoint(&self) -> String {
+        format!("courses/{}/modules", self.id)
     }
 }
