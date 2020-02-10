@@ -1,0 +1,27 @@
+[package]
+name = "canvas-file-sync"
+version = "0.1.0"
+authors = ["Khyber Sen <kkysen@gmail.com>"]
+edition = "2018"
+description = "Sync Canvas files to your computer."
+license = "MIT"
+repository = "https://github.com/kkysen/CanvasFileSync"
+homepage = "https://github.com/kkysen/CanvasFileSync/blob/master/README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.0"
+structopt = {version = "0.3.2", features = ["paw"]}
+paw = "1.0.0"
+serde = {version = "1.0.104", features = ["derive"]}
+serde_json = "1.0.47"
+async-std = "1.5.0"
+surf = "1.0.3"
+itertools = "0.8.2"
+futures = "0.3.4"
+
+[profile.release]
+lto = true
+panic = "abort"
+opt-level = "z"
