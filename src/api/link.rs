@@ -1,5 +1,3 @@
-use crate::api::link::LinkType::{CURRENT, FIRST};
-
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum LinkType {
     CURRENT,
@@ -18,16 +16,14 @@ impl LinkType {
             _ => return None
         })
     }
-    
-    pub fn is_not_current_first(&self) -> bool {
-        *self != CURRENT && *self != FIRST
-    }
 }
 
 #[derive(Debug)]
 pub(super) struct Link<'a> {
     pub url: &'a str,
+    pub query: &'a str,
     pub type_: LinkType,
+    pub current: bool,
 }
 
 fn surrounded_by(s: &str, p1: char, p2: char) -> Option<&str> {
@@ -39,8 +35,12 @@ fn surrounded_by(s: &str, p1: char, p2: char) -> Option<&str> {
     Some(&s[start..end])
 }
 
+fn query_from_url(url: &str) -> &str {
+    let i = url.rfind('?').unwrap_or(url.len() - 1) + 1;
+    &url[i..]
+}
+
 impl<'a> Link<'a> {
-    
     fn of(link: &'a str) -> Option<Link<'a>> {
         let middle = link.find("; rel=")?;
         let (front, back) = link.split_at(middle);
@@ -48,7 +48,9 @@ impl<'a> Link<'a> {
         let link_type = surrounded_by(back, '"', '"')?;
         Some(Link {
             url,
+            query: query_from_url(url),
             type_: LinkType::of(link_type)?,
+            current: false,
         })
     }
 }
@@ -56,17 +58,38 @@ impl<'a> Link<'a> {
 #[derive(Debug)]
 pub(super) struct Links<'a> {
     raw: &'a str,
-    pub links: Vec<Link<'a>>,
+    links: Vec<Link<'a>>,
 }
 
 impl<'a> Links<'a> {
     pub(super) fn of(raw: &'a str) -> Option<Links<'a>> {
-        let links = raw.split(',')
+        let mut links: Vec<Link<'a>> = raw.split(',')
             .map(Link::of)
             .collect::<Option<Vec<_>>>()?;
+        let current = links.iter()
+            .find(|it| it.type_ == LinkType::CURRENT)
+            .map(|it| it.query);
+        if let Some(current) = current {
+            for mut link in &mut links {
+                link.current = current == link.query;
+            }
+        }
         Some(Links {
             raw,
             links,
         })
+    }
+    
+    pub fn iter(&self) -> impl Iterator<Item = &Link<'a>> {
+        self.links.iter()
+    }
+}
+
+impl Default for Links<'_> {
+    fn default() -> Self {
+        Links {
+            raw: "",
+            links: Vec::default(),
+        }
     }
 }
