@@ -1,0 +1,40 @@
+query Courses {
+    allCourses {
+        _id
+        name
+        createdAt
+        updatedAt
+    }
+}
+
+query Modules($course_id: ID!) {
+    course(id: $course_id) {
+        id
+        name
+        modulesConnection {
+            nodes {
+                _id
+                name
+                createdAt
+                updatedAt
+                moduleItems {
+                    _id
+                    url
+                    content {
+                        __typename
+                        ... on File {
+                            _id
+                            displayName
+                            contentType
+                            createdAt
+                            updatedAt
+                        }
+                    }
+                }
+            }
+            pageInfo {
+                hasNextPage
+            }
+        }
+    }
+}

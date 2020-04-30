@@ -13,7 +13,7 @@ impl LinkType {
             "next" => LinkType::NEXT,
             "first" => LinkType::FIRST,
             "last" => LinkType::LAST,
-            _ => return None
+            _ => return None,
         })
     }
 }
@@ -63,10 +63,9 @@ pub(super) struct Links<'a> {
 
 impl<'a> Links<'a> {
     pub(super) fn of(raw: &'a str) -> Option<Links<'a>> {
-        let mut links: Vec<Link<'a>> = raw.split(',')
-            .map(Link::of)
-            .collect::<Option<Vec<_>>>()?;
-        let current = links.iter()
+        let mut links: Vec<Link<'a>> = raw.split(',').map(Link::of).collect::<Option<Vec<_>>>()?;
+        let current = links
+            .iter()
             .find(|it| it.type_ == LinkType::CURRENT)
             .map(|it| it.query);
         if let Some(current) = current {
@@ -74,12 +73,9 @@ impl<'a> Links<'a> {
                 link.current = current == link.query;
             }
         }
-        Some(Links {
-            raw,
-            links,
-        })
+        Some(Links { raw, links })
     }
-    
+
     pub fn iter(&self) -> impl Iterator<Item = &Link<'a>> {
         self.links.iter()
     }

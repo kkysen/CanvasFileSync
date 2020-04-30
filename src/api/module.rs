@@ -5,16 +5,20 @@ use serde::Deserialize;
 pub struct Module {
     pub id: Id,
     pub name: String,
-    pub items_url: String,
+    pub items: Vec<ModuleItem>,
 }
 
 impl Module {
-    pub fn items_endpoint(&self) -> String {
-    
-    }
+    //    pub fn items_endpoint(&self) -> String {
+    //
+    //    }
 }
 
 pub struct ModuleItem {
     pub id: Id,
-    pub title: String,
+    pub url: String,
+}
+
+pub struct File {
+    pub id: Id,
 }

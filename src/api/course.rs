@@ -16,15 +16,9 @@ pub struct Course {
 
 impl From<MaybeCourse> for Option<Course> {
     fn from(course: MaybeCourse) -> Self {
-        let MaybeCourse {
-            id,
-            name,
-        } = course;
+        let MaybeCourse { id, name } = course;
         let name = name?;
-        Some(Course {
-            id,
-            name,
-        })
+        Some(Course { id, name })
     }
 }
 
