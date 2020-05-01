@@ -2,8 +2,9 @@ use async_std::task;
 // use canvas_file_sync::api::Api;
 // use itertools::Itertools;
 
-use canvas_file_sync::api::data::{Directory, Downloads};
 use std::path::Path;
+use canvas_file_sync::api::downloads::Downloads;
+use canvas_file_sync::api::data::Directory;
 
 fn old_main() {
     // let api = Api::new(

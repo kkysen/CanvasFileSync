@@ -1,6 +1,28 @@
-use crate::api::data::{RegularFile, GetFileBase, File, Directory};
+use crate::api::data::{RegularFile, GetFileBase, File, Directory, Id};
+use std::collections::HashMap;
 
-pub trait Diff where Self: Sized + GetFileBase {
+trait GetFileBaseExt: GetFileBase {
+    fn id(&self) -> u64 {
+        self.base().id.id
+    }
+    
+    fn is_newer_than(&self, other: &impl GetFileBase) -> bool {
+        self.base().time.modified() > other.base().time.modified()
+    }
+}
+
+impl<T: GetFileBase> GetFileBaseExt for T {}
+
+impl Directory {
+    fn id_to_file_map(&self) -> HashMap<Id, &File> {
+        self.files
+            .iter()
+            .map(|file| (file.id(), file))
+            .collect()
+    }
+}
+
+pub(crate) trait Diff where Self: Sized + GetFileBase {
     fn diff_id_unchecked(self, old: &Self) -> Option<Self>;
     
     fn diff(self, old: &Self) -> Option<Self> {

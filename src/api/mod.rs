@@ -6,7 +6,8 @@
 // use crate::api::query::Courses;
 
 pub mod data;
-pub mod download;
+pub mod downloads;
+mod download;
 mod diff;
 
 // mod core;
