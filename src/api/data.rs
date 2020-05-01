@@ -1,15 +1,15 @@
-use chrono::{DateTime, Local, NaiveDateTime};
+use chrono::{DateTime, Local};
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use itertools::{Either, Itertools};
-use std::borrow::Borrow;
-use std::{io, fs};
-use std::path::{Path, PathBuf};
 use optional::Optioned;
-use std::error::Error;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::error::Error;
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 pub type Id = u64;
 
+#[derive(Serialize, Deserialize)]
 pub struct IdName {
     id: Id,
     name: String,
@@ -40,27 +40,32 @@ pub struct Module {
     files: Vec<RegularFile>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct FileBase {
     id: IdName,
     time: FileTime,
     size: Optioned<u64>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct FileTime {
     created_at: DateTime<Local>,
     updated_at: Option<DateTime<Local>>,
     modified_at: Option<DateTime<Local>>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Directory {
     base: FileBase,
     files: Vec<File>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct RegularFile {
     base: FileBase,
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum File {
     Directory(Directory),
     RegularFile(RegularFile),
@@ -80,13 +85,13 @@ impl FileTime {
             modified_at: None,
         }
     }
-    
+
     pub fn modified(&self) -> DateTime<Local> {
         self.modified_at
             .or(self.updated_at)
             .unwrap_or(self.created_at)
     }
-    
+
     pub fn convert(time: DateTime<Local>) -> filetime::FileTime {
         filetime::FileTime::from_unix_time(time.timestamp(), time.timestamp_subsec_nanos())
     }
@@ -162,7 +167,7 @@ impl From<Module> for Directory {
             files,
         } = module;
         Directory {
-            base: FileBase::directory(id, created_at),
+            base: FileBase::directory(id, completed_at),
             files: files.into_iter().map(|it| File::RegularFile(it)).collect(),
         }
     }
@@ -176,25 +181,23 @@ pub struct Download {
 impl FileBase {
     pub fn to_path(&self, path: &Path) -> PathBuf {
         let mut path = path.to_owned();
-        path.push(self.base.id.name);
+        path.push(&self.id.name);
         path
     }
-    
+
     pub fn into_download(self, path: &Path) -> Download {
-        Download {
-            file: self,
-            path: self.to_path(path),
-        }
+        let path = self.to_path(path);
+        Download { file: self, path }
     }
 }
 
 trait GetFileBase {
     fn base(&self) -> &FileBase;
-    
+
     fn id(&self) -> u64 {
         self.base().id.id
     }
-    
+
     fn is_newer_than(&self, other: &impl GetFileBase) -> bool {
         self.base().time.modified() > other.base().time.modified()
     }
@@ -221,16 +224,15 @@ impl GetFileBase for File {
     }
 }
 
-trait Diff {
+trait Diff
+where
+    Self: Sized, {
     fn diff(self, old: &Self) -> Option<Self>;
 }
 
 impl Directory {
-    fn id_to_file_map(self) -> HashMap<Id, File> {
-        self.files
-            .into_iter()
-            .map(|file| (file.id(), file))
-            .collect()
+    fn id_to_file_map(&self) -> HashMap<Id, &File> {
+        self.files.iter().map(|file| (file.id(), file)).collect()
     }
 }
 
@@ -238,72 +240,80 @@ impl Diff for Directory {
     fn diff(self, old: &Self) -> Option<Self> {
         assert_eq!(self.id(), old.id());
         // TODO check if in canvas the directory time is updated when one of its files is updated
-        if self.is_newer_than(old) {
-            return None;
-        }
-        let file_map = self.id_to_file_map();
-        let new_files = old.files
-            .iter()
-            .filter_map(|old_file|
-                file_map.get(&old_file.id()).map(|new_file| (new_file, old_file))
-            )
-            .filter_map(|(new, old)| new.diff(old))
-            .collect();
-        let new_dir = Directory {
-            files: new_files,
-            ..self
-        };
-        Some(new_dir)
+        Some(self).filter(|new| new.is_newer_than(old)).map(|new| {
+            let old_files_map = old.id_to_file_map();
+            Directory {
+                files: new
+                    .files
+                    .into_iter()
+                    .filter_map(|new_file| match old_files_map.get(&new_file.id()) {
+                        None => Some(new_file),
+                        Some(old_file) => new_file.diff(old_file),
+                    })
+                    .collect(),
+                ..new
+            }
+        })
     }
 }
 
 impl Diff for RegularFile {
     fn diff(self, old: &Self) -> Option<Self> {
         assert_eq!(self.id(), old.id());
-        Some(self)
-            .filter(|it| it.is_newer_than(old))
+        Some(self).filter(|it| it.is_newer_than(old))
     }
 }
 
 impl Diff for File {
     fn diff(self, old: &Self) -> Option<Self> {
         match (self, old) {
-            (File::Directory(new), File::Directory(old)) =>
-                new.diff(old).map(File::Directory),
-            (File::RegularFile(new), File::RegularFile(old)) =>
-                new.diff(old).map(File::RegularFile),
-            (_, _) => panic!("diff'ed Directory with RegularFile")
+            (File::Directory(new), File::Directory(old)) => new.diff(old).map(File::Directory),
+            (File::RegularFile(new), File::RegularFile(old)) => {
+                new.diff(old).map(File::RegularFile)
+            }
+            (_, _) => panic!("diff'ed Directory with RegularFile"),
         }
     }
 }
 
 impl Directory {
-    fn add_to_downloads_internal(self, path: &Path, downloads: &mut Downloads) {
+    fn add_to_downloads_internal(
+        self,
+        path: &Path,
+        downloads_immut: &DownloadsImmut,
+        downloads_mut: &mut DownloadsMut,
+    ) {
         let download = self.base.into_download(path);
-        if !downloads.add(download, true) {
+        let path = download.path.clone();
+        let path = path.as_path();
+        if !Downloads::add(downloads_immut, downloads_mut, download, true) {
             return;
         }
-        let path = download.path();
         for file in self.files {
             match file {
                 File::Directory(dir) => {
-                    dir.into_downloads(path, downloads);
+                    dir.add_to_downloads_internal(path, downloads_immut, downloads_mut);
                 }
                 File::RegularFile(file) => {
-                    downloads.add(file.base.into_download(path), false);
+                    let download = file.base.into_download(path);
+                    Downloads::add(downloads_immut, downloads_mut, download, false);
                 }
             }
         }
     }
-    
+
     pub fn add_to_downloads(self, downloads: &mut Downloads) {
-        self.add_to_downloads_internal(downloads.root(), downloads);
+        let downloads_immut = &downloads.immut;
+        let downloads_mut = &mut downloads.r#mut;
+        self.add_to_downloads_internal(downloads_immut.root(), downloads_immut, downloads_mut);
     }
 }
 
 impl Downloads {
     pub fn add_file_tree(&mut self, dir: Directory) {
-        dir.diff(&self.current).add_to_downloads(self)
+        if let Some(dir) = dir.diff(&self.immut.current) {
+            dir.add_to_downloads(self);
+        }
     }
 }
 
@@ -311,16 +321,16 @@ impl Download {
     pub fn path(&self) -> &Path {
         self.path.as_ref()
     }
-    
+
     pub fn set_time(&self) -> io::Result<()> {
         let mtime = self.file.time.modified();
         let mtime = FileTime::convert(mtime);
         filetime::set_file_times(self.path(), mtime, mtime)?;
         Ok(())
     }
-    
+
     pub fn download_as_directory(&self) -> io::Result<()> {
-        let path = dir.path();
+        let path = self.path();
         if let Err(e) = fs::create_dir(path) {
             let exists = e.kind() == io::ErrorKind::AlreadyExists;
             let dir_exists = exists && path.is_dir();
@@ -328,34 +338,33 @@ impl Download {
                 return Err(e);
             }
         }
-        dir.set_time()?;
+        self.set_time()?;
         Ok(())
     }
-    
+
     pub async fn download_as_file(&self) -> io::Result<()> {
         todo!();
-        self.set_time();
+        self.set_time()?;
         Ok(())
     }
 }
 
 impl Downloads {
     pub fn create_directories(&self) -> io::Result<()> {
-        for dir in &self.directories {
+        for dir in &self.r#mut.directories {
             dir.download_as_directory()?;
         }
         Ok(())
     }
-    
+
     pub async fn download_files(&self) -> io::Result<()> {
         todo!();
         // TODO await in parallel
-        self.files
-            .iter()
-            .map(|file| file.download_as_file());
+        let download_futures = self.r#mut.files.iter().map(|file| file.download_as_file());
+        futures::future::join_all(download_futures).await;
         Ok(())
     }
-    
+
     pub async fn download(&self) -> io::Result<()> {
         self.create_directories()?;
         self.download_files().await?;
@@ -364,56 +373,113 @@ impl Downloads {
 }
 
 impl Directory {
-    pub fn from_path(path: &Path) -> Result<Directory, dyn Error> {
-        let bytes = fs::read(path)?;
-        serde_json::from_slice(bytes.as_ref())
-    }
-    
-    pub fn from_dir(dir: &Path) -> Result<Directory, dyn Error> {
+    fn default_path(dir: &Path) -> PathBuf {
         let mut dir = dir.to_owned();
         dir.push("file_tree.json");
+        dir
+    }
+
+    pub fn from_path(path: &Path) -> Result<Directory, Box<dyn Error>> {
+        let bytes = fs::read(path)?;
+        let dir = serde_json::from_slice(bytes.as_ref())?;
+        Ok(dir)
+    }
+
+    pub fn from_dir(dir: &Path) -> Result<Directory, Box<dyn Error>> {
+        let dir = Directory::default_path(dir);
         Directory::from_path(dir.as_ref())
+    }
+
+    pub fn to_path(&self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let bytes = serde_json::to_vec_pretty(self)?;
+        fs::write(path, bytes)?;
+        Ok(())
+    }
+
+    pub fn to_dir(&self, dir: &Path) -> Result<(), Box<dyn Error>> {
+        let dir = Directory::default_path(dir);
+        self.to_path(dir.as_ref())
     }
 }
 
+// need to separate into immut and mut parts
 pub struct Downloads {
+    immut: DownloadsImmut,
+    r#mut: DownloadsMut,
+}
+
+pub struct DownloadsImmut {
     root: PathBuf,
     ignore: Gitignore,
     current: Directory,
+}
+
+impl DownloadsImmut {
+    fn new(root: PathBuf) -> Result<Self, Box<dyn Error>> {
+        let root_ref = root.as_ref();
+        let ignore = GitignoreBuilder::new(root_ref).build()?;
+        let current = Directory::from_dir(root_ref)?;
+        Ok(Self {
+            root,
+            ignore,
+            current,
+        })
+    }
+
+    pub fn root(&self) -> &Path {
+        self.root.as_ref()
+    }
+
+    fn can_add(&self, download: &Download, is_dir: bool) -> bool {
+        !self
+            .ignore
+            .matched(download.path.as_path(), is_dir)
+            .is_ignore()
+    }
+}
+
+pub struct DownloadsMut {
     directories: Vec<Download>,
     files: Vec<Download>,
 }
 
-impl<'a> Downloads {
-    pub fn new(root: PathBuf) -> Result<Downloads, dyn Error> {
-        Ok(Downloads {
-            root,
-            ignore: GitignoreBuilder::new(root.as_ref()).build()?,
-            current: Directory::from_dir(root.as_ref())?,
+impl DownloadsMut {
+    fn new() -> Self {
+        Self {
             directories: Vec::new(),
             files: Vec::new(),
-        })
+        }
     }
-    
-    pub fn root(&self) -> &Path {
-        self.root.as_ref()
-    }
-    
+
     fn downloads(&mut self, is_dir: bool) -> &mut Vec<Download> {
         match is_dir {
             true => &mut self.directories,
             false => &mut self.files,
         }
     }
-    
-    fn can_add(&self, download: &Download, is_dir: bool) -> bool {
-        !self.ignore.matched(download.path.as_ref(), is_dir).is_ignore()
+
+    fn add(&mut self, download: Download, is_dir: bool) {
+        self.downloads(is_dir).push(download)
     }
-    
-    pub fn add(&mut self, download: Download, is_dir: bool) -> bool {
-        let added = self.can_add(&download, is_dir);
+}
+
+impl<'a> Downloads {
+    pub fn new(root: PathBuf) -> Result<Self, Box<dyn Error>> {
+        Ok(Self {
+            immut: DownloadsImmut::new(root)?,
+            r#mut: DownloadsMut::new(),
+        })
+    }
+
+    fn add(
+        self_immut: &DownloadsImmut,
+        self_mut: &mut DownloadsMut,
+        download: Download,
+        is_dir: bool,
+    ) -> bool {
+        let added = self_immut.can_add(&download, is_dir);
         if added {
-            self.downloads(is_dir).push(download)
+            self_mut.add(download, is_dir)
         }
         added
     }
