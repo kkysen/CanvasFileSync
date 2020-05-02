@@ -31,7 +31,7 @@ use std::error::Error;
 async fn async_main() -> Result<(), Box<dyn Error>> {
     let path: &Path = ".".as_ref();
     let mut downloads = Downloads::new(path.to_owned())?;
-    let file_tree = FileTree::from_dir(path)?;
+    let file_tree: FileTree = serde_json::from_str("")?;
     downloads.add_file_tree(file_tree)?;
     downloads.download().await?;
     Ok(())

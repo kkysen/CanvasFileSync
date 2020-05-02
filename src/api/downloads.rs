@@ -3,7 +3,6 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use crate::api::data::{Directory, File, FileTree, GetFileBase};
 use crate::api::download::{Download, GetFileBaseExt};
 use crate::api::diff_merge::{Diff, Merge};
-use std::{io, fs};
 use std::error::Error;
 use crate::util;
 use crate::util::future::FutureIterator;
@@ -159,7 +158,7 @@ impl Downloads {
         Ok(())
     }
     
-    pub fn create_directories(&mut self) -> io::Result<()> {
+    pub fn create_directories(&mut self) -> std::io::Result<()> {
         for dir in self
             .r#mut.directories
             .drain(..) {
@@ -185,36 +184,5 @@ impl Downloads {
         self.create_directories()?;
         self.download_files().await?;
         Ok(())
-    }
-}
-
-// TODO remove
-impl FileTree {
-    fn default_path(dir: &Path) -> PathBuf {
-        let mut dir = dir.to_owned();
-        dir.push("file_tree.json");
-        dir
-    }
-    
-    pub fn from_path(path: &Path) -> Result<Self, Box<dyn Error>> {
-        let bytes = fs::read(path)?;
-        let dir = serde_json::from_slice(bytes.as_ref())?;
-        Ok(dir)
-    }
-    
-    pub fn from_dir(dir: &Path) -> Result<Self, Box<dyn Error>> {
-        let dir = Self::default_path(dir);
-        Self::from_path(dir.as_ref())
-    }
-    
-    pub fn to_path(&self, path: &Path) -> Result<(), Box<dyn Error>> {
-        let bytes = serde_json::to_vec_pretty(self)?;
-        fs::write(path, bytes)?;
-        Ok(())
-    }
-    
-    pub fn to_dir(&self, dir: &Path) -> Result<(), Box<dyn Error>> {
-        let dir = Self::default_path(dir);
-        self.to_path(dir.as_ref())
     }
 }
