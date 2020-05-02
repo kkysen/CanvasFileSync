@@ -1,5 +1,5 @@
 use crate::download::data::{RegularFile, GetFileBase, File, Directory, Id, FileTree};
-use std::collections::HashMap;
+use halfbrown::HashMap;
 
 trait GetFileBaseExt: GetFileBase {
     fn is_newer_than(&self, other: &impl GetFileBase) -> bool {
