@@ -1,8 +1,8 @@
 use std::path::{PathBuf, Path};
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use crate::api::data::{Directory, File, FileTree, GetFileBase};
-use crate::api::download::{Download, GetFileBaseExt};
-use crate::api::diff_merge::{Diff, Merge};
+use crate::download::data::{Directory, File, FileTree, GetFileBase};
+use crate::download::download::{Download, GetFileBaseExt};
+use crate::download::diff_merge::{Diff, Merge};
 use std::error::Error;
 use crate::util;
 use crate::util::future::FutureIterator;

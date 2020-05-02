@@ -1,4 +1,4 @@
-use crate::api::data::{RegularFile, GetFileBase, File, Directory, Id, FileTree};
+use crate::download::data::{RegularFile, GetFileBase, File, Directory, Id, FileTree};
 use std::collections::HashMap;
 
 trait GetFileBaseExt: GetFileBase {

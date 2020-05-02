@@ -5,11 +5,6 @@
 // use crate::api::query::modules::ModulesCourseModulesConnection;
 // use crate::api::query::Courses;
 
-pub mod data;
-pub mod downloads;
-mod download;
-mod diff_merge;
-
 // mod core;
 // mod course;
 // mod link;

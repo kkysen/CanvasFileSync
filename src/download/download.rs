@@ -1,4 +1,4 @@
-use crate::api::data::{GetFileBase, FileBase, FileTime};
+use crate::download::data::{GetFileBase, FileBase, FileTime};
 use std::path::{PathBuf, Path};
 use chrono::{DateTime, Local};
 use std::error::Error;
