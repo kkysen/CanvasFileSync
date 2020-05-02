@@ -77,6 +77,7 @@ impl DownloadsMut {
     }
     
     fn downloads(&mut self, is_dir: bool) -> &mut Vec<Download> {
+        #[allow(clippy::match_bool)]
         match is_dir {
             true => &mut self.directories,
             false => &mut self.files,

@@ -40,9 +40,7 @@ impl Download {
     }
     
     fn modification_time(&self) -> filetime::FileTime {
-        let mtime = self.file.time.modified();
-        let mtime = FileTime::convert(mtime);
-        mtime
+        FileTime::convert(self.file.time.modified())
     }
     
     fn set_time(&self) -> std::io::Result<()> {
