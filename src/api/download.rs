@@ -1,7 +1,7 @@
 use crate::api::data::{GetFileBase, FileBase, FileTime};
 use std::path::{PathBuf, Path};
 use chrono::{DateTime, Local};
-use std::{io, fs};
+use std::error::Error;
 
 pub struct Download {
     file: FileBase,
@@ -39,17 +39,22 @@ impl Download {
         self.path.as_ref()
     }
     
-    pub fn set_time(&self) -> io::Result<()> {
+    fn modification_time(&self) -> filetime::FileTime {
         let mtime = self.file.time.modified();
         let mtime = FileTime::convert(mtime);
+        mtime
+    }
+    
+    fn set_time(&self) -> std::io::Result<()> {
+        let mtime = self.modification_time();
         filetime::set_file_times(self.path(), mtime, mtime)?;
         Ok(())
     }
     
-    pub fn download_as_directory(&self) -> io::Result<()> {
+    pub(crate) fn download_as_directory(&self) -> std::io::Result<()> {
         let path = self.path();
-        if let Err(e) = fs::create_dir(path) {
-            let exists = e.kind() == io::ErrorKind::AlreadyExists;
+        if let Err(e) = std::fs::create_dir(path) {
+            let exists = e.kind() == std::io::ErrorKind::AlreadyExists;
             let dir_exists = exists && path.is_dir();
             if !dir_exists {
                 return Err(e);
@@ -59,9 +64,20 @@ impl Download {
         Ok(())
     }
     
-    pub async fn download_as_file(&self) -> io::Result<()> {
-        todo!();
+    fn file_url(&self, domain: &str) -> String {
+        format!("https://{}/files/{}/download?download_frd=1", domain, self.file.id())
+    }
+    
+    pub(crate) async fn download_as_file(&self, domain: &str) -> Result<(), Box<dyn Error>> {
+        let mut file = async_std::fs::File::open(self.path()).await?;
+        let mut resp = surf::get(self.file_url(domain)).await?;
+        async_std::io::copy(&mut resp, &mut file).await?;
         self.set_time()?;
         Ok(())
+    }
+    
+    pub(crate) async fn download_as_file_into(self, domain: &str) -> Result<Self, Box<dyn Error>> {
+        self.download_as_file(domain).await?;
+        Ok(self)
     }
 }

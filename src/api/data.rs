@@ -66,6 +66,12 @@ pub enum File {
     RegularFile(RegularFile),
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct FileTree {
+    pub(crate) domain: String,
+    pub(crate) root: Directory,
+}
+
 fn to_directories<T: Into<Directory>>(vec: Vec<T>) -> impl Iterator<Item = File> {
     vec.into_iter()
         .map(|it| it.into())
@@ -117,16 +123,19 @@ impl FileBase {
     }
 }
 
-impl From<Canvas> for Directory {
+impl From<Canvas> for FileTree {
     fn from(canvas: Canvas) -> Self {
         let Canvas {
             id,
-            domain: _,
+            domain,
             users,
         } = canvas;
-        Directory {
-            base: FileBase::directory(id, Local::now()),
-            files: to_directories(users).collect(),
+        Self {
+            domain,
+            root: Directory {
+                base: FileBase::directory(id, Local::now()),
+                files: to_directories(users).collect(),
+            },
         }
     }
 }
@@ -138,7 +147,7 @@ impl From<User> for Directory {
             created_at,
             courses,
         } = user;
-        Directory {
+        Self {
             base: FileBase::directory(id, created_at),
             files: to_directories(courses).collect(),
         }
@@ -156,7 +165,7 @@ impl From<Course> for Directory {
         let mut files = Vec::with_capacity(1 + modules.len());
         files.push(File::Directory(folder));
         files.extend(to_directories(modules));
-        Directory {
+        Self {
             base: FileBase::directory(id, created_at),
             files,
         }
@@ -170,7 +179,7 @@ impl From<Module> for Directory {
             completed_at,
             files,
         } = module;
-        Directory {
+        Self {
             base: FileBase::directory(id, completed_at),
             files: files
                 .into_iter()
@@ -184,6 +193,10 @@ pub(crate) trait GetFileBase where Self: Sized {
     fn base(&self) -> &FileBase;
     
     fn into_base(self) -> FileBase;
+    
+    fn id(&self) -> u64 {
+        self.base().id.id
+    }
 }
 
 impl GetFileBase for FileBase {
