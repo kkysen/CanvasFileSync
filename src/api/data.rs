@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub type Id = u64;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct IdName {
     pub(crate) id: Id,
     pub(crate) name: String,
@@ -35,14 +35,14 @@ pub struct Module {
     files: Vec<RegularFile>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FileBase {
     pub(crate) id: IdName,
     pub(crate) time: FileTime,
     pub(crate) size: Optioned<u64>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FileTime {
     created_at: DateTime<Local>,
     updated_at: Option<DateTime<Local>>,
@@ -192,6 +192,8 @@ impl From<Module> for Directory {
 pub(crate) trait GetFileBase where Self: Sized {
     fn base(&self) -> &FileBase;
     
+    fn base_mut(&mut self) -> &mut FileBase;
+    
     fn into_base(self) -> FileBase;
     
     fn id(&self) -> u64 {
@@ -201,7 +203,11 @@ pub(crate) trait GetFileBase where Self: Sized {
 
 impl GetFileBase for FileBase {
     fn base(&self) -> &FileBase {
-        &self
+        self
+    }
+    
+    fn base_mut(&mut self) -> &mut FileBase {
+        self
     }
     
     fn into_base(self) -> FileBase {
@@ -214,6 +220,10 @@ impl GetFileBase for Directory {
         &self.base
     }
     
+    fn base_mut(&mut self) -> &mut FileBase {
+        &mut self.base
+    }
+    
     fn into_base(self) -> FileBase {
         self.base
     }
@@ -224,6 +234,10 @@ impl GetFileBase for RegularFile {
         &self.base
     }
     
+    fn base_mut(&mut self) -> &mut FileBase {
+        &mut self.base
+    }
+    
     fn into_base(self) -> FileBase {
         self.base
     }
@@ -231,9 +245,16 @@ impl GetFileBase for RegularFile {
 
 impl GetFileBase for File {
     fn base(&self) -> &FileBase {
-        match &self {
+        match self {
             File::Directory(dir) => dir.base(),
             File::RegularFile(file) => file.base(),
+        }
+    }
+    
+    fn base_mut(&mut self) -> &mut FileBase {
+        match self {
+            File::Directory(dir) => dir.base_mut(),
+            File::RegularFile(file) => file.base_mut(),
         }
     }
     

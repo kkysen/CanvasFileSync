@@ -24,6 +24,8 @@ pub mod future {
     use futures::Future;
     
     pub trait FutureIterator: Iterator {
+        // can't use async fn's in traits b/c of impl Future,
+        // but I can when the return Future type is concrete
         fn join_all(self) -> JoinAll<<Self as IntoIterator>::Item>
             where
                 Self: Sized,

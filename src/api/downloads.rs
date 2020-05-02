@@ -1,8 +1,8 @@
 use std::path::{PathBuf, Path};
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use crate::api::data::{Directory, File, FileTree};
+use crate::api::data::{Directory, File, FileTree, GetFileBase};
 use crate::api::download::{Download, GetFileBaseExt};
-use crate::api::diff::Diff;
+use crate::api::diff_merge::{Diff, Merge};
 use std::{io, fs};
 use std::error::Error;
 use crate::util;
@@ -110,9 +110,10 @@ impl Downloads {
     
     fn add_directory(
         self_immut: &DownloadsImmut, self_mut: &mut DownloadsMut,
-        dir: Directory, path: &Path,
+        dir: &Directory, path: &Path,
     ) {
-        let download = dir.base.into_download(path);
+        // TODO might be able to clone less than whole FileBase
+        let download = dir.base.clone().into_download(path);
         let path = download.path.clone();
         let path = path.as_path();
         if !Self::add_download(
@@ -121,7 +122,7 @@ impl Downloads {
         ) {
             return;
         }
-        for file in dir.files {
+        for file in &dir.files {
             match file {
                 File::Directory(dir) => {
                     Self::add_directory(
@@ -130,9 +131,14 @@ impl Downloads {
                     );
                 }
                 File::RegularFile(file) => {
+                    let download = file
+                        .base()
+                        .clone()
+                        .into_file()
+                        .into_download(path);
                     Self::add_download(
                         self_immut, self_mut,
-                        file.into_download(path), false,
+                        download, false,
                     );
                 }
             }
@@ -146,10 +152,9 @@ impl Downloads {
         };
         Self::add_directory(
             &self.immut, &mut self.r#mut,
-            diff.root, self.immut.root(),
+            &diff.root, self.immut.root(),
         );
-        // TODO merge diff and current
-        // set current to merged
+        self.immut.current_file_tree.merge(diff);
         self.immut.save_current_file_tree()?;
         Ok(())
     }
@@ -157,7 +162,7 @@ impl Downloads {
     pub fn create_directories(&mut self) -> io::Result<()> {
         for dir in self
             .r#mut.directories
-            .drain(0..) {
+            .drain(..) {
             dir.download_as_directory()?;
         }
         Ok(())
@@ -167,7 +172,7 @@ impl Downloads {
         let domain = &self.immut.current_file_tree.domain;
         for result in self
             .r#mut.files
-            .drain(0..)
+            .drain(..)
             .map(|file| file.download_as_file_into(domain))
             .join_all()
             .await {

@@ -8,7 +8,7 @@
 pub mod data;
 pub mod downloads;
 mod download;
-mod diff;
+mod diff_merge;
 
 // mod core;
 // mod course;
