@@ -26,6 +26,7 @@ ignore = "0.4.14"
 optional = { version = "0.5.0", features = ["serde"] }
 filetime = "0.2.9"
 halfbrown = "0.1.11"
+http-types = "1.2.0"
 
 [profile.release]
 lto = true

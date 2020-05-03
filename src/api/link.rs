@@ -1,18 +1,18 @@
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum LinkType {
-    CURRENT,
-    NEXT,
-    FIRST,
-    LAST,
+    Current,
+    Next,
+    First,
+    Last,
 }
 
 impl LinkType {
     fn of(link_type: &str) -> Option<LinkType> {
         Some(match link_type {
-            "current" => LinkType::CURRENT,
-            "next" => LinkType::NEXT,
-            "first" => LinkType::FIRST,
-            "last" => LinkType::LAST,
+            "current" => LinkType::Current,
+            "next" => LinkType::Next,
+            "first" => LinkType::First,
+            "last" => LinkType::Last,
             _ => return None,
         })
     }
@@ -66,7 +66,7 @@ impl<'a> Links<'a> {
         let mut links: Vec<Link<'a>> = raw.split(',').map(Link::of).collect::<Option<Vec<_>>>()?;
         let current = links
             .iter()
-            .find(|it| it.type_ == LinkType::CURRENT)
+            .find(|it| it.type_ == LinkType::Current)
             .map(|it| it.query);
         if let Some(current) = current {
             for mut link in &mut links {

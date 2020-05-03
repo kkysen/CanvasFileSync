@@ -31,7 +31,7 @@ pub(crate) trait Diff where Self: Sized {
 
 impl Diff for FileTree {
     fn diff(self, old: &Self) -> Option<Self> {
-        let Self { domain, root } = self;
+        let Self { api, root } = self;
         Some(root)
             .map(|new| (new, &old.root))
             .filter(|(new, old)| {
@@ -39,7 +39,7 @@ impl Diff for FileTree {
                 true
             })
             .and_then(|(new, old)| new.diff(old))
-            .map(|root| Self { domain, root })
+            .map(|root| Self { api, root })
     }
 }
 

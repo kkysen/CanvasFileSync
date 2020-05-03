@@ -1,6 +1,7 @@
 use chrono::{DateTime, Local};
 use optional::Optioned;
 use serde::{Deserialize, Serialize};
+use crate::api::core::CoreApi;
 
 pub type Id = u64;
 
@@ -10,9 +11,13 @@ pub struct IdName {
     pub(crate) name: String,
 }
 
-pub struct Canvas {
+pub struct CanvasBase {
+    api: CoreApi,
     id: IdName,
-    domain: String,
+}
+
+pub struct Canvas {
+    base: CanvasBase,
     users: Vec<User>,
 }
 
@@ -68,7 +73,7 @@ pub enum File {
 
 #[derive(Serialize, Deserialize)]
 pub struct FileTree {
-    pub(crate) domain: String,
+    pub(crate) api: CoreApi,
     pub(crate) root: Directory,
 }
 
@@ -126,12 +131,14 @@ impl FileBase {
 impl From<Canvas> for FileTree {
     fn from(canvas: Canvas) -> Self {
         let Canvas {
-            id,
-            domain,
+            base: CanvasBase {
+                id,
+                api,
+            },
             users,
         } = canvas;
         Self {
-            domain,
+            api,
             root: Directory {
                 base: FileBase::directory(id, Local::now()),
                 files: to_directories(users).collect(),

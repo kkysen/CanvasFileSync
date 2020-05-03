@@ -2,6 +2,7 @@ use crate::download::data::{GetFileBase, FileBase, FileTime};
 use std::path::{PathBuf, Path};
 use chrono::{DateTime, Local};
 use std::error::Error;
+use crate::api::core::CoreApi;
 
 pub struct Download {
     file: FileBase,
@@ -62,20 +63,16 @@ impl Download {
         Ok(())
     }
     
-    fn file_url(&self, domain: &str) -> String {
-        format!("https://{}/files/{}/download?download_frd=1", domain, self.file.id())
-    }
-    
-    pub(crate) async fn download_as_file(&self, domain: &str) -> Result<(), Box<dyn Error>> {
+    pub(crate) async fn download_as_file(&self, api: &CoreApi) -> Result<(), Box<dyn Error>> {
         let mut file = async_std::fs::File::open(self.path()).await?;
-        let mut resp = surf::get(self.file_url(domain)).await?;
+        let mut resp = api.download(&self.file.id()).await?;
         async_std::io::copy(&mut resp, &mut file).await?;
         self.set_time()?;
         Ok(())
     }
     
-    pub(crate) async fn download_as_file_into(self, domain: &str) -> Result<Self, Box<dyn Error>> {
-        self.download_as_file(domain).await?;
+    pub(crate) async fn download_as_file_into(self, api: &CoreApi) -> Result<Self, Box<dyn Error>> {
+        self.download_as_file(api).await?;
         Ok(self)
     }
 }

@@ -5,9 +5,9 @@
 // use crate::api::query::modules::ModulesCourseModulesConnection;
 // use crate::api::query::Courses;
 
-// mod core;
+pub(crate) mod core;
+mod link;
 // mod course;
-// mod link;
 // mod module;
 // mod query;
 

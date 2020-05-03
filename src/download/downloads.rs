@@ -6,7 +6,7 @@ use crate::download::diff_merge::{Diff, Merge};
 use std::error::Error;
 use crate::util;
 use crate::util::future::FutureIterator;
-use std::io::Write;
+use std::io::{Write, Read};
 
 // need to separate into immut and mut parts
 pub struct Downloads {
@@ -26,23 +26,34 @@ pub struct DownloadsMut {
     files: Vec<Download>,
 }
 
+fn open_and_parse_file_tree(root: &Path) -> Result<(std::fs::File, FileTree), Box<dyn Error>> {
+    let path = {
+        let mut path = root.to_path_buf();
+        path.push("file_tree.json");
+        path
+    };
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .create(true)
+        .open(path)?;
+    let metadata = file.metadata()?; // shouldn't really be able to Err
+    let size = metadata.len() as usize;
+    let file_tree = if size == 0 {
+        todo!()
+    } else {
+        let mut bytes = Vec::with_capacity(size + 1);
+        file.read_to_end(&mut bytes)?;
+        serde_json::from_slice(bytes.as_ref())?
+    };
+    Ok((file, file_tree))
+}
 
 impl DownloadsImmut {
     fn new(root: PathBuf) -> Result<Self, Box<dyn Error>> {
         let ignore = GitignoreBuilder::new(root.as_path()).build()?;
-        let file_tree_path = {
-            let mut path = root.clone();
-            path.push("file_tree.json");
-            path
-        };
-        let mut file_tree_file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .truncate(false)
-            .create(true)
-            .open(file_tree_path)?;
-        let file_tree_bytes = util::fs::read_all(&mut file_tree_file)?;
-        let current_file_tree = serde_json::from_slice(file_tree_bytes.as_ref())?;
+        let (file_tree_file, current_file_tree) = open_and_parse_file_tree(root.as_ref())?;
         Ok(Self {
             root,
             ignore,
@@ -169,11 +180,11 @@ impl Downloads {
     }
     
     pub async fn download_files(&mut self) -> Result<(), Box<dyn Error>> {
-        let domain = &self.immut.current_file_tree.domain;
+        let api = &self.immut.current_file_tree.api;
         for result in self
             .r#mut.files
             .drain(..)
-            .map(|file| file.download_as_file_into(domain))
+            .map(|file| file.download_as_file_into(api))
             .join_all()
             .await {
             result?;
