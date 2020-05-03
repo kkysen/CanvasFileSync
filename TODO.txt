@@ -1,0 +1,88 @@
+CanvasFileSync
+
+integrate Api w/ file downloading
+file downloading needs an auth token
+so domain: String should instead be api: Api
+
+
+
+struct CliArgs {
+	access_token: Option<String>,
+	
+}
+
+
+make things pub instead of pub crate
+
+search for gitignores recursively (need walkdir crate)
+check to see if recursive gitignore paths are respected when matching from root dir
+
+download should contain a CoreApi reference
+
+canvas-file-sync add --dir $CANVAS_DIR --access-token $ACCESS_TOKEN search terms
+	dir defaults to environment variable or dirs::document_dir()
+	access token must be supplied on command line or taken from environment variable
+	search terms are combined by spaces
+	searches https://canvas.instructure.com/api/v1/accounts/search?name=Columbia&per_page=40
+	if access token doesn't work
+		then error
+	if only one search result
+		select that one automatically
+	if multiple search results
+		launch skim to select one
+		can be done in process
+	use https://${domain}/api/v1/users/self to query user info for access token
+	load sync.json from dir
+	if selected canvas and user don't already exist in sync.json
+		add them with empty directory
+	save sync.json to disk
+	exit
+	
+	
+canvas-file-sync [sync] --dir $CANVAS_DIR
+	sync is optional
+	same dir defaults as for add
+	load sync.json from dir
+	for each canvas in sync.json
+		for each user in canvas
+			create a FileTree with a CoreApi
+			note that FileTree still starts from dir, not dir/canvas/user
+			fetch the whole User with all their Courses
+			convert this into a Downloads
+			download diff
+			return User's new FileTree
+	run all these users concurrently (async)
+	reform new FileTrees into sync.json
+	save sync.json to disk
+
+when loading sync.json, lock it
+after saving sync.json, release the lock
+if we try to load sync.json and it's locked, 
+notify the user that sync.json is locked and we're waiting
+
+also, before loading sync.json,
+if --git false no set,
+run git status to check if "nothing to commit" or "not a git repository"
+if "nothing to commit"
+	proceed
+if "not a git repository"
+	git init
+else
+	error changes must be committed first
+after saving sync.json, add all files and git commit with own message
+if adding a user, commit message is 
+	"Added ${user.name} in ${canvas.name}."
+	so for e.x., "Added Khyber Sen in Columbia University."
+if downloading, commit message is
+	"Synced new files."
+don't push to github b/c it contains secrets
+unless a private repo?
+
+crates
+	walkdir
+	skim
+	git2
+
+skim and git might be run as subprocesses
+git more likely, since git2 is large and complex
+git status | rg "nothing to commit" to test if can commit
