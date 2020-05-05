@@ -4,7 +4,6 @@ use crate::download::data::{Directory, File, FileTree, GetFileBase};
 use crate::download::download::{Download, GetFileBaseExt};
 use crate::download::diff_merge::{Diff, Merge};
 use std::error::Error;
-use crate::util;
 use crate::util::future::FutureIterator;
 use std::io::{Write, Read};
 

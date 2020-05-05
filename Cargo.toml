@@ -27,6 +27,9 @@ optional = { version = "0.5.0", features = ["serde"] }
 filetime = "0.2.9"
 halfbrown = "0.1.11"
 http-types = "1.2.0"
+walkdir = "2.3.1"
+#skim = "0.8.1"
+dirs = "2.0.2"
 
 [profile.release]
 lto = true

@@ -2,18 +2,21 @@ use chrono::{DateTime, Local};
 use optional::Optioned;
 use serde::{Deserialize, Serialize};
 use crate::api::core::CoreApi;
+use std::fmt::Display;
+use serde::export::Formatter;
+use std::fmt;
 
 pub type Id = u64;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct IdName {
-    pub(crate) id: Id,
-    pub(crate) name: String,
+    pub id: Id,
+    pub name: String,
 }
 
 pub struct CanvasBase {
-    api: CoreApi,
-    id: IdName,
+    pub api: CoreApi,
+    pub id: IdName,
 }
 
 pub struct Canvas {
@@ -75,6 +78,13 @@ pub enum File {
 pub struct FileTree {
     pub(crate) api: CoreApi,
     pub(crate) root: Directory,
+}
+
+impl Display for CanvasBase {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} @ {}", self.api.domain, self.id.name)?;
+        Ok(())
+    }
 }
 
 fn to_directories<T: Into<Directory>>(vec: Vec<T>) -> impl Iterator<Item = File> {

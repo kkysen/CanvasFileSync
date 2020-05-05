@@ -1,32 +1,13 @@
+#![allow(dead_code)]
+
+mod cli;
+
 use async_std::task;
 use std::path::Path;
 use canvas_file_sync::download::downloads::Downloads;
 use canvas_file_sync::download::data::FileTree;
 use std::error::Error;
-
-// use canvas_file_sync::api::Api;
-// use itertools::Itertools;
-
-// fn old_main() {
-// let api = Api::new(
-//     "courseworks2.columbia.edu".into(),
-//     env!("ACCESS_TOKEN").into(),
-// );
-// task::block_on(async {
-//     let courses = api.courses().await.unwrap().collect_vec();
-//     courses
-//         .iter()
-//         .map(|it| format!("{}, {}", it.id, it.name))
-//         .for_each(|it| println!("{}", it));
-//     let spanish = courses.iter().find(|it| it.id == 99186).unwrap();
-//     let modules = api.modules(spanish).await.unwrap().collect_vec();
-//     modules
-//         .iter()
-//         .map(|it| format!("{}, {}, {}", it.id, it.name, it.items_url))
-//         .for_each(|it| println!("{}", it))
-// });
-// println!("{}", api.authorization())
-// }
+use crate::cli::Args;
 
 async fn async_main() -> Result<(), Box<dyn Error>> {
     let path: &Path = ".".as_ref();
@@ -37,8 +18,14 @@ async fn async_main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn main() {
+fn main2() {
     task::block_on(async {
         async_main().await.unwrap();
     })
+}
+
+#[paw::main]
+fn main(args: Args) -> std::io::Result<()> {
+    println!("{:?}", args);
+    Ok(())
 }

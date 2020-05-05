@@ -7,6 +7,9 @@
 
 pub(crate) mod core;
 mod link;
+
+pub use self::core::CoreApi;
+
 // mod course;
 // mod module;
 // mod query;
